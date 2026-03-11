@@ -2,169 +2,138 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime
+import requests
 
-# --- KONFIGURACE STRÁNKY ---
-st.set_page_config(
-    page_title="Community Roleplay - Admin Panel",
-    page_icon="🏙️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- KONFIGURACE ---
+# Pokud chceš, aby zprávy z webu okamžitě pípaly na DC, vlož sem Webhook URL
+DISCORD_WEBHOOK_URL = "" 
 
-# --- PROPOJENÍ S TVOJI DATABÁZÍ ---
-def get_db_connection():
-    # Používáme tvůj soubor tickets.db
+st.set_page_config(page_title="Admin Panel - Tickets", layout="wide")
+
+# --- PROPOJENÍ S TVOJI DB (Dle database.py) ---
+def query_db(query, params=(), one=False):
     conn = sqlite3.connect('tickets.db', check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    return conn
-
-# Funkce pro odeslání zprávy (ukládá do tvé tabulky messages)
-def send_admin_message(ticket_id, content):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Vložíme zprávu jako 'Admin' - tvůj bot.py si ji odtud může brát nebo ji posílat dál
-    cursor.execute(
-        "INSERT INTO messages (ticket_id, sender, content) VALUES (?, ?, ?)",
-        (ticket_id, "Admin", content)
-    )
-    # Aktualizujeme stav ticketu na 'Řeší se'
-    cursor.execute("UPDATE tickets SET status = 'Řeší se' WHERE id = ?", (ticket_id,))
+    cur = conn.cursor()
+    cur.execute(query, params)
+    rv = cur.fetchall()
     conn.commit()
     conn.close()
+    return (rv[0] if rv else None) if one else rv
 
-# --- CUSTOM CSS (Vzhled dashboard.html) ---
+# --- CSS PRO IDENTICKÝ VZHLED ---
 st.markdown("""
 <style>
-    .stApp { background-color: #0e0e1a; color: #ffffff; }
-    [data-testid="stSidebar"] { background-color: #121225; border-right: 1px solid #2d2d44; }
+    /* Hlavní barvy */
+    .stApp { background-color: #0b0b15; color: #e1e1e6; }
+    [data-testid="stSidebar"] { background-color: #0f0f1e; border-right: 1px solid #1e1e2f; }
     
-    /* Kontejner pro tabulku */
-    .main-card {
-        background-color: #16162d;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #2d2d44;
-    }
+    /* Karty a kontejnery */
+    .main-card { background-color: #121225; padding: 25px; border-radius: 15px; border: 1px solid #1e1e2f; }
     
-    /* Stylování statusů */
-    .status-badge {
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-    .status-resi { background-color: rgba(241, 196, 15, 0.2); color: #f1c40f; }
-    .status-novy { background-color: rgba(46, 204, 113, 0.2); color: #2ecc71; }
-    .status-uzavren { background-color: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    /* Tabulka */
+    .stDataFrame { border: none !important; }
+    .ticket-row { border-bottom: 1px solid #1e1e2f; padding: 10px 0; transition: 0.3s; }
+    .ticket-row:hover { background-color: #1a1a35; }
 
-    /* Sidebar tlačítka */
-    .sidebar-btn {
-        display: block;
-        width: 100%;
-        padding: 10px;
-        color: #8888a0;
-        text-decoration: none;
-        border-radius: 5px;
-        margin-bottom: 5px;
-    }
-    .active-nav { background-color: #1d1d3b; color: #6c5ce7; }
+    /* Badge statusy */
+    .badge { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-resi { background-color: rgba(255, 193, 7, 0.1); color: #ffc107; border: 1px solid #ffc107; }
+    .status-novy { background-color: rgba(40, 167, 69, 0.1); color: #28a745; border: 1px solid #28a745; }
+    
+    /* Chat sekce (Pravá strana) */
+    .chat-container { background-color: #0f0f1e; border-radius: 12px; padding: 15px; border: 1px solid #1e1e2f; height: 500px; overflow-y: auto; }
+    .msg-admin { align-self: flex-end; background-color: #6c5ce7; color: white; padding: 8px 12px; border-radius: 10px 10px 0 10px; margin: 5px; }
+    .msg-player { align-self: flex-start; background-color: #1e1e2f; color: white; padding: 8px 12px; border-radius: 10px 10px 10px 0; margin: 5px; border: 1px solid #2d2d44; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR (Dle tvého loga a menu) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.image("logo.jpg", width=120)
-    st.markdown("<h3 style='text-align: center; margin-bottom: 20px;'>ADMIN PANEL</h3>", unsafe_allow_html=True)
+    st.image("logo.jpg", width=100)
+    st.markdown("### Community RP\n**ADMIN PANEL**")
+    st.divider()
+    st.button("🏠 Přehled", use_container_width=True)
+    st.button("🎫 Tikety", use_container_width=True)
+    st.button("📁 Archiv", use_container_width=True)
+    st.divider()
+    st.markdown("🟢 **Server Online** (1/64)")
+
+# --- HLAVNÍ ROZHRANÍ ---
+col_main, col_chat = st.columns([2, 1])
+
+with col_main:
+    st.title("Tikety podpory")
     
-    st.markdown("---")
-    # Navigace
-    if st.button("🏙️ Přehled", use_container_width=True): st.session_state.page = "dashboard"
-    if st.button("🎫 Tikety", use_container_width=True): st.session_state.page = "tickets"
-    if st.button("👤 Moje Tikety", use_container_width=True): pass
-    if st.button("📁 Archiv", use_container_width=True): st.session_state.page = "archive"
-    if st.button("⚙️ Nastavení", use_container_width=True): pass
+    # Načtení dat z tvé DB (předpokládám sloupce z tvého bot.py)
+    tickets = query_db("SELECT * FROM tickets WHERE status != 'Uzavřen' ORDER BY id DESC")
     
-    st.markdown("---")
-    st.markdown("**STAV SERVERU: <span style='color:#2ecc71'>● ONLINE</span>**", unsafe_allow_html=True)
-    st.write("1 / 64 Hráčů")
-    
-    col1, col2 = st.columns(2)
-    col1.button("Web", key="web")
-    col2.button("Discord", key="dc")
+    st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    # Hlavička tabulky
+    t_h1, t_h2, t_h3, t_h4 = st.columns([1, 2, 2, 2])
+    t_h1.caption("ID")
+    t_h2.caption("HRÁČ")
+    t_h3.caption("STAV")
+    t_h4.caption("AKCE")
+    st.divider()
 
-# --- HLAVNÍ PLOCHA ---
-st.title("Tikety podpory")
-
-# Načtení dat z DB
-conn = get_db_connection()
-# Načítáme tikety (pokud máš v DB sloupec 'category', 'player', 'status', 'created_at')
-tickets_df = pd.read_sql_query("SELECT * FROM tickets WHERE status != 'Uzavřen' ORDER BY id DESC", conn)
-conn.close()
-
-# Filtry a hledání
-col_s, col_f = st.columns([3, 1])
-with col_s:
-    search = st.text_input("🔍 Hledat...", placeholder="Hledat podle jména hráče...", label_visibility="collapsed")
-
-# Tabulka tiketů
-st.markdown('<div class="main-card">', unsafe_allow_html=True)
-st.subheader("Nedávné tikety")
-
-# Hlavička
-h1, h2, h3, h4, h5, h6 = st.columns([0.5, 1.5, 1.5, 1.5, 2.5, 1.5])
-h1.write("**ID**")
-h2.write("**HRÁČ**")
-h3.write("**KATEGORIE**")
-h4.write("**STAV**")
-h5.write("**VYTVOŘENO**")
-h6.write("**AKCE**")
-st.divider()
-
-for idx, row in tickets_df.iterrows():
-    # Jednoduchý filtr
-    if search and search.lower() not in row['player'].lower():
-        continue
+    for t in tickets:
+        r1, r2, r3, r4 = st.columns([1, 2, 2, 2])
+        r1.write(f"#{t['id']}")
+        r2.write(f"**{t['player']}**")
         
-    c1, c2, c3, c4, c5, c6 = st.columns([0.5, 1.5, 1.5, 1.5, 2.5, 1.5])
-    c1.write(f"#{row['id']}")
-    c2.write(row['player'])
-    c3.markdown(f"`{row['category']}`")
-    
-    # Badge pro stav
-    status = row['status']
-    st_class = "status-resi" if status == "Řeší se" else "status-novy"
-    c4.markdown(f'<span class="status-badge {st_class}">{status}</span>', unsafe_allow_html=True)
-    
-    c5.write(row['created_at'])
-    
-    if c6.button("Otevřít →", key=f"btn_{row['id']}"):
-        st.session_state.active_ticket_id = row['id']
-        st.session_state.active_ticket_player = row['player']
+        # Status Badge
+        st_class = "status-resi" if t['status'] == "Řeší se" else "status-novy"
+        r3.markdown(f'<span class="badge {st_class}">{t["status"]}</span>', unsafe_allow_html=True)
+        
+        if r4.button("Detail →", key=f"t_{t['id']}"):
+            st.session_state.active_id = t['id']
+            st.session_state.active_player = t['player']
+    st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- MODUL CHATU (Detail tiketu) ---
-if 'active_ticket_id' in st.session_state:
-    t_id = st.session_state.active_ticket_id
-    st.markdown("---")
-    st.subheader(f"💬 Chat: {st.session_state.active_ticket_player} (Ticket #{t_id})")
-    
-    # Načtení historie zpráv pro tento tiket
-    conn = get_db_connection()
-    messages_df = pd.read_sql_query("SELECT * FROM messages WHERE ticket_id = ? ORDER BY id ASC", conn, params=(t_id,))
-    conn.close()
-
-    # Zobrazení chatu
-    chat_box = st.container(height=400, border=True)
-    for _, msg in messages_df.iterrows():
-        is_admin = msg['sender'] == "Admin"
-        with chat_box.chat_message("assistant" if is_admin else "user"):
-            st.write(f"**{msg['sender']}**")
-            st.write(msg['content'])
-            st.caption(msg['timestamp'] if 'timestamp' in msg else "")
-
-    # Odesílání
-    if prompt := st.chat_input("Napište odpověď hráči..."):
-        send_admin_message(t_id, prompt)
-        st.rerun()
+# --- DETAIL TIKETU (CHAT) ---
+with col_chat:
+    if 'active_id' in st.session_state:
+        t_id = st.session_state.active_id
+        st.subheader(f"Chat: #{t_id}")
+        
+        # Načtení zpráv
+        msgs = query_db("SELECT * FROM messages WHERE ticket_id = ? ORDER BY id ASC", (t_id,))
+        
+        # Chat box
+        st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+        for m in msgs:
+            is_admin = (m['sender'] == "Admin")
+            div_class = "msg-admin" if is_admin else "msg-player"
+            st.markdown(f'''
+                <div style="display: flex; flex-direction: column;">
+                    <div class="{div_class}">
+                        <small style="opacity: 0.7;">{m['sender']}</small><br>{m['content']}
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Input
+        with st.form("msg_form", clear_on_submit=True):
+            user_input = st.text_input("Napište odpověď...")
+            col_s1, col_s2 = st.columns(2)
+            if col_s1.form_submit_button("Odeslat 🚀"):
+                if user_input:
+                    # 1. Uložit do DB
+                    query_db("INSERT INTO messages (ticket_id, sender, content) VALUES (?, ?, ?)", 
+                             (t_id, "Admin", user_input))
+                    query_db("UPDATE tickets SET status = 'Řeší se' WHERE id = ?", (t_id,))
+                    
+                    # 2. Odeslat na Discord (pokud máš Webhook)
+                    if DISCORD_WEBHOOK_URL:
+                        requests.post(DISCORD_WEBHOOK_URL, json={"content": f"**Admin:** {user_input}"})
+                    
+                    st.rerun()
+            
+            if col_s2.form_submit_button("❌ Zavřít"):
+                query_db("UPDATE tickets SET status = 'Uzavřen' WHERE id = ?", (t_id,))
+                del st.session_state.active_id
+                st.rerun()
+    else:
+        st.info("Vyberte tiket ze seznamu pro zobrazení chatu.")
