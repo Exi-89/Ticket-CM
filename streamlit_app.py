@@ -3,118 +3,113 @@ import sqlite3
 import json
 from datetime import datetime
 
-# --- KONFIGURACE ---
-st.set_page_config(page_title="Community RP - Admin", layout="wide")
+# --- KONFIGURACE STRÁNKY ---
+st.set_page_config(page_title="Community RP - Admin Panel", layout="wide")
 
-# --- STYLOVÁNÍ (Neon Purple) ---
+# --- CUSTOM CSS PRO IDENTICKÝ VZHLED ---
 st.markdown("""
     <style>
+    /* Temné pozadí celé aplikace */
     .stApp {
-        background-color: #050505;
-        color: white;
+        background-color: #0d1117;
+        color: #e6edf3;
     }
-    /* Styl pro karty tiketů v seznamu */
-    .ticket-card {
-        background: rgba(124, 58, 237, 0.1);
-        border: 1px solid #7c3aed;
-        border-radius: 10px;
+    
+    /* Úprava bočního panelu */
+    [data-testid="stSidebar"] {
+        background-color: #161b22;
+        border-right: 1px solid #30363d;
+        padding-top: 20px;
+    }
+    
+    /* Styl pro tabulku a řádky */
+    .ticket-row {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
         padding: 15px;
         margin-bottom: 10px;
-        transition: 0.3s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    .ticket-card:hover {
-        background: rgba(124, 58, 237, 0.2);
-        box-shadow: 0 0 15px #7c3aed;
+
+    /* Tagy pro statusy (Barvy podle tvého obrázku) */
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
     }
-    /* Skrytí menu Streamlitu */
-    #MainMenu {visibility: hidden;}
+    .status-resise { background-color: #f1c40f33; color: #f1c40f; border: 1px solid #f1c40f; }
+    .status-novy { background-color: #2ecc7133; color: #2ecc71; border: 1px solid #2ecc71; }
+    
+    /* Skrytí horní lišty Streamlitu */
     header {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNKCE DATABÁZE ---
-def get_db():
-    conn = sqlite3.connect("tickets.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_db()
-    conn.execute('''CREATE TABLE IF NOT EXISTS tickets 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, player TEXT, category TEXT, 
-                  status TEXT, discord_id TEXT, created_at TIMESTAMP, history TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# --- DASHBOARD ---
-st.title("💜 Community RP - Admin Panel")
-
-col_list, col_detail = st.columns([0.4, 0.6])
-
-with col_list:
-    st.subheader("🎫 Aktivní vstupenky")
+# --- SIDEBAR (LEVÝ PANEL) ---
+with st.sidebar:
+    # Logo a název (nahraď URL tvým logem)
+    st.image("logo.jpg", width=100)
+    st.markdown("### Community Roleplay\n**ADMIN PANEL**")
+    st.write("---")
     
-    conn = get_db()
-    tickets = conn.execute("SELECT * FROM tickets ORDER BY id DESC").fetchall()
-    conn.close()
+    # Menu (Tlačítka)
+    st.button("🏠 Přehled", use_container_width=True)
+    st.button("🎫 Tikety", type="primary", use_container_width=True)
+    st.button("👤 Moje Tikety", use_container_width=True)
+    st.button("📁 Archiv", use_container_width=True)
+    st.button("⚙️ Nastavení", use_container_width=True)
+    
+    st.write("---")
+    # Stav serveru (spodní část)
+    st.markdown("STAV SERVERU: <span style='color:#2ecc71'>● ONLINE</span>", unsafe_allow_html=True)
+    st.progress(1/64)
+    st.caption("1 / 64 Hráčů")
 
-    if not tickets:
-        st.info("Zatím žádné tikety. Zkus vytvořit testovací níže! 👇")
-        if st.button("➕ Vytvořit testovací tiket"):
-            conn = get_db()
-            test_history = json.dumps([{"sender": "Hráč", "text": "Ahoj, potřebuju pomoc.", "time": "12:00"}])
-            conn.execute("INSERT INTO tickets (player, category, status, history) VALUES (?, ?, ?, ?)",
-                        ("TestHrac_89", "Podpora", "Otevřeno", test_history))
-            conn.commit()
-            conn.close()
-            st.rerun()
+# --- HLAVNÍ OBSAH (TABULKA TIKETŮ) ---
+st.title("Tikety podpory")
 
-    for t in tickets:
-        # Vytvoření "klikatelné" karty pomocí buttonu
-        if st.button(f"🆔 #{t['id']} | {t['player']}\n📂 {t['category']}", key=f"t_{t['id']}", use_container_width=True):
-            st.session_state.active_id = t['id']
-            st.rerun()
+# Horní lišta s filtrem a hledáním
+col_title, col_filter, col_search = st.columns([2, 1, 1])
+with col_filter:
+    st.selectbox("", ["Všechny stavy", "Nové", "Řeší se", "Uzavřené"], label_visibility="collapsed")
+with col_search:
+    st.text_input("", placeholder="Hledat tikety...", label_visibility="collapsed")
 
-with col_detail:
-    if "active_id" in st.session_state:
-        conn = get_db()
-        t = conn.execute("SELECT * FROM tickets WHERE id = ?", (st.session_state.active_id,)).fetchone()
-        conn.close()
+# Záhlaví tabulky
+st.markdown("""
+<div style='display: flex; color: #8b949e; font-size: 12px; font-weight: bold; padding: 10px 20px;'>
+    <div style='flex: 0.5;'>ID</div>
+    <div style='flex: 1.5;'>HRÁČ</div>
+    <div style='flex: 1.5;'>KATEGORIE</div>
+    <div style='flex: 1;'>STAV</div>
+    <div style='flex: 2;'>VYTVOŘENO</div>
+    <div style='flex: 1; text-align: right;'>AKCE</div>
+</div>
+""", unsafe_allow_html=True)
 
-        st.markdown(f"### Detail tiketu #{t['id']}")
-        st.write(f"**Hráč:** {t['player']} | **Kategorie:** {t['category']}")
-        
-        # CHAT
-        st.markdown("---")
-        history = json.loads(t['history']) if t['history'] else []
-        for msg in history:
-            align = "right" if msg['sender'] == "Admin" else "left"
-            color = "#7c3aed" if msg['sender'] == "Admin" else "#374151"
-            st.markdown(f'''
-                <div style="text-align: {align}; margin-bottom: 10px;">
-                    <div style="background: {color}; display: inline-block; padding: 10px; border-radius: 10px; max-width: 80%;">
-                        <b>{msg['sender']}:</b> {msg['text']}<br>
-                        <small style="opacity: 0.5;">{msg['time']}</small>
-                    </div>
-                </div>
-            ''', unsafe_allow_html=True)
+# Funkce pro simulaci/načtení dat
+def show_ticket_row(id, hrac, kat, stav, datum):
+    status_class = "status-resise" if stav == "Řeší se" else "status-novy"
+    st.markdown(f"""
+    <div class="ticket-row">
+        <div style='flex: 0.5;'>#{id}</div>
+        <div style='flex: 1.5;'>{hrac}</div>
+        <div style='flex: 1.5;'><span style='background:#30363d; padding:2px 8px; border-radius:4px;'>{kat}</span></div>
+        <div style='flex: 1;'><span class="status-badge {status_class}">{stav}</span></div>
+        <div style='flex: 2;'>{datum}</div>
+        <div style='flex: 1; text-align: right; color: #a855f7; cursor: pointer;'>Otevřít →</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        # ODPOVĚĎ
-        with st.form("reply", clear_on_submit=True):
-            msg_text = st.text_input("Napiš odpověď...")
-            if st.form_submit_button("Odeslat"):
-                if msg_text:
-                    history.append({"sender": "Admin", "text": msg_text, "time": datetime.now().strftime("%H:%M")})
-                    conn = get_db()
-                    conn.execute("UPDATE tickets SET history = ? WHERE id = ?", (json.dumps(history), t['id']))
-                    conn.commit()
-                    conn.close()
-                    st.rerun()
-    else:
-        st.write("Vyberte tiket ze seznamu vlevo pro zobrazení chatu.")
+# Zobrazení testovacích dat (pak se nahradí databází)
+show_ticket_row(6, "xxexitusxx", "frakce", "Řeší se", "2026-03-07 17:02:50")
+show_ticket_row(5, "razor_21", "razor", "Řeší se", "2026-03-07 16:28:02")
+show_ticket_row(3, "xxexitusxx", "Frakce", "Řeší se", "2026-03-07 10:59:33")
+show_ticket_row(2, "CopRoleplay", "Frakce", "Nový", "2026-03-07 08:09:41")
 
-# --- AUTO REFRESH ---
-if st.button("🔄 Aktualizovat"):
-    st.rerun()
+if st.button("Zobrazit vše", use_container_width=True):
+    pass
