@@ -1,141 +1,142 @@
 import streamlit as st
-import sqlite3
-from datetime import datetime
 
-# --- 1. KONFIGURACE (MUSÍ BÝT PRVNÍ) ---
-st.set_page_config(
-    page_title="Community Roleplay - Admin Panel",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. Konfigurace stránky
+st.set_page_config(page_title="CRP Admin", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. KOMPLETNÍ STYLING (PODLE NGROK PŘEDLOHY) ---
+# 2. KOMPLETNÍ DASHBOARD DESIGN (CSS + HTML)
 st.markdown("""
     <style>
-    /* Hlavní pozadí a písmo */
-    .stApp { background-color: #0d1117; color: #e6edf3; }
+    /* Základní reset */
+    .stApp { background-color: #0d1117; color: white; }
+    header, footer { visibility: hidden; }
+    [data-testid="stSidebar"] { display: none; } /* Schováme ten nefunkční default sidebar */
     
-    /* Levý Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #161b22 !important;
-        border-right: 1px solid #30363d;
-    }
-    
-    /* Schovat horní lištu Streamlitu */
-    header { visibility: hidden; }
-    
-    /* Fialové akcenty pro tlačítka v menu */
-    .stButton > button {
-        width: 100%;
-        background-color: transparent;
-        color: #8b949e;
-        border: none;
-        text-align: left;
-        padding: 10px 15px;
-        border-radius: 8px;
-    }
-    .stButton > button:hover {
-        background-color: #21262d;
-        color: #7c3aed;
-    }
-    
-    /* Speciální styl pro aktivní tlačítko "Tikety" */
-    .active-nav {
-        background-color: #7c3aed22 !important;
-        color: #a855f7 !important;
-        border-left: 3px solid #a855f7 !important;
-        border-radius: 4px;
+    /* Naše vlastní rozvržení */
+    .main-wrapper {
+        display: flex;
+        margin-left: -5rem;
+        margin-top: -5rem;
     }
 
-    /* Tabulkový kontejner */
-    .main-card {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 12px;
+    /* VLASTNÍ SIDEBAR */
+    .custom-sidebar {
+        width: 260px;
+        height: 100vh;
+        background: #161b22;
+        border-right: 1px solid #30363d;
+        position: fixed;
+        display: flex;
+        flex-direction: column;
         padding: 20px;
     }
+
+    .nav-item {
+        padding: 12px 15px;
+        margin: 4px 0;
+        border-radius: 8px;
+        color: #8b949e;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        transition: 0.2s;
+    }
+    .nav-item:hover { background: #21262d; color: white; }
+    .nav-item.active { background: #7c3aed22; color: #a855f7; border-left: 3px solid #a855f7; }
+
+    /* HLAVNÍ PLOCHA */
+    .main-content {
+        margin-left: 280px;
+        padding: 40px;
+        width: 100%;
+    }
+
+    /* KARTA S TIKETY */
+    .ticket-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        padding: 24px;
+    }
+
+    .ticket-table { width: 100%; border-collapse: collapse; }
+    .ticket-table th { text-align: left; color: #8b949e; padding-bottom: 15px; border-bottom: 1px solid #30363d; font-size: 13px; }
+    .ticket-table td { padding: 15px 0; border-bottom: 1px solid #21262d; font-size: 14px; }
+
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .status-resise { color: #f1c40f; background: rgba(241, 196, 15, 0.1); border: 1px solid #f1c40f; }
+    .status-novy { color: #2ecc71; background: rgba(46, 204, 113, 0.1); border: 1px solid #2ecc71; }
+    
+    .btn-open { color: #a855f7; text-decoration: none; font-weight: bold; cursor: pointer; }
     </style>
-    """, unsafe_allow_html=True)
 
-# --- 3. BOČNÍ MENU ---
-with st.sidebar:
-    # Logo a název
-    st.markdown("""
-        <div style='text-align: center; padding: 20px 0;'>
-            <h2 style='color: white; margin-bottom: 0;'>Community Roleplay</h2>
-            <p style='color: #a855f7; font-size: 0.8em; font-weight: bold;'>ADMIN PANEL</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("---")
-    
-    # Navigace
-    st.button("⊞ Přehled")
-    st.markdown('<div class="active-nav">', unsafe_allow_html=True)
-    st.button("🎫 Tikety")
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.button("👤 Moje Tikety")
-    st.button("📁 Archiv")
-    st.button("⚙ Nastavení")
-
-    # Status serveru dole
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("""
-        <div style='background: #0d1117; padding: 15px; border-radius: 10px; border: 1px solid #30363d;'>
-            <div style='display: flex; justify-content: space-between;'>
-                <span style='font-size: 0.8em;'>STAV SERVERU</span>
-                <span style='color: #2ecc71; font-size: 0.8em;'>● ONLINE</span>
+    <div class="main-wrapper">
+        <div class="custom-sidebar">
+            <div style="text-align:center; margin-bottom: 30px;">
+                <h2 style="margin:0;">Community RP</h2>
+                <small style="color: #a855f7; letter-spacing: 2px;">ADMIN PANEL</small>
             </div>
-            <h3 style='margin: 10px 0;'>1 <span style='color: gray; font-size: 0.5em;'>/ 64 Hráčů</span></h3>
-            <div style='background: #30363d; height: 4px; border-radius: 2px;'>
-                <div style='background: #a855f7; width: 2%; height: 100%; border-radius: 2px;'></div>
+            
+            <a class="nav-item">🏠 Přehled</a>
+            <a class="nav-item active">🎫 Tikety</a>
+            <a class="nav-item">👤 Moje Tikety</a>
+            <a class="nav-item">📁 Archiv</a>
+            <a class="nav-item">⚙️ Nastavení</a>
+
+            <div style="margin-top: auto; background: #0d1117; padding: 15px; border-radius: 10px; border: 1px solid #30363d;">
+                <div style="display:flex; justify-content: space-between; font-size: 11px; color: gray;">
+                    <span>STAV SERVERU</span>
+                    <span style="color: #2ecc71;">● ONLINE</span>
+                </div>
+                <div style="margin: 10px 0; font-weight: bold;">1 / 64 Hráčů</div>
+                <div style="background:#30363d; height:4px; border-radius:2px;"><div style="width:2%; background:#a855f7; height:100%;"></div></div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
 
-# --- 4. HLAVNÍ OBSAH (TIKETY) ---
-st.title("Tikety podpory")
-
-# Horní filtry a vyhledávání
-c1, c2, c3 = st.columns([2, 1, 1])
-with c2: st.selectbox("Stav", ["Všechny stavy", "Nový", "Řeší se"], label_visibility="collapsed")
-with c3: st.text_input("Hledat tikety...", label_visibility="collapsed", placeholder="Hledat...")
-
-# Tabulka tiketů
-st.markdown('<div class="main-card">', unsafe_allow_html=True)
-st.markdown("""
-    <div style='display: flex; color: #8b949e; font-weight: bold; border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 10px;'>
-        <div style='flex: 0.5;'>ID</div>
-        <div style='flex: 1.5;'>HRÁČ</div>
-        <div style='flex: 1;'>KATEGORIE</div>
-        <div style='flex: 1;'>STAV</div>
-        <div style='flex: 1.5;'>VYTVOŘENO</div>
-        <div style='flex: 1; text-align: right;'>AKCE</div>
+        <div class="main-content">
+            <h1>Tikety podpory</h1>
+            <div class="ticket-card">
+                <h3 style="margin-top:0;">Nedávné tikety</h3>
+                <table class="ticket-table">
+                    <tr>
+                        <th>ID</th>
+                        <th>HRÁČ</th>
+                        <th>KATEGORIE</th>
+                        <th>STAV</th>
+                        <th>VYTVOŘENO</th>
+                        <th style="text-align:right;">AKCE</th>
+                    </tr>
+                    <tr>
+                        <td>#6</td>
+                        <td>xxexitusxx</td>
+                        <td><span style="background:#30363d; padding:2px 6px; border-radius:4px;">frakce</span></td>
+                        <td><span class="status-badge status-resise">Řeší se</span></td>
+                        <td>2026-03-07 17:02:50</td>
+                        <td style="text-align:right;"><span class="btn-open">Otevřít →</span></td>
+                    </tr>
+                    <tr>
+                        <td>#5</td>
+                        <td>razor_21</td>
+                        <td><span style="background:#30363d; padding:2px 6px; border-radius:4px;">razor</span></td>
+                        <td><span class="status-badge status-resise">Řeší se</span></td>
+                        <td>2026-03-07 16:28:02</td>
+                        <td style="text-align:right;"><span class="btn-open">Otevřít →</span></td>
+                    </tr>
+                    <tr>
+                        <td>#2</td>
+                        <td>CopRoleplay</td>
+                        <td><span style="background:#30363d; padding:2px 6px; border-radius:4px;">Frakce</span></td>
+                        <td><span class="status-badge status-novy">Nový</span></td>
+                        <td>2026-03-07 08:09:41</td>
+                        <td style="text-align:right;"><span class="btn-open">Otevřít →</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
     </div>
-""", unsafe_allow_html=True)
-
-# Ukázková data (v budoucnu SQL)
-demo_tickets = [
-    {"id": "#6", "hrac": "xxexitusxx", "kat": "frakce", "stav": "Řeší se", "stav_col": "#f1c40f", "cas": "2026-03-07 17:02:50"},
-    {"id": "#5", "hrac": "razor_21", "kat": "razor", "stav": "Řeší se", "stav_col": "#f1c40f", "cas": "2026-03-07 16:28:02"},
-    {"id": "#2", "hrac": "CopRoleplay", "kat": "Frakce", "stav": "Nový", "stav_col": "#2ecc71", "cas": "2026-03-07 08:09:41"},
-]
-
-for t in demo_tickets:
-    col_data, col_btn = st.columns([0.85, 0.15])
-    with col_data:
-        st.markdown(f"""
-            <div style='display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #21262d;'>
-                <div style='flex: 0.5;'>{t['id']}</div>
-                <div style='flex: 1.5;'>{t['hrac']}</div>
-                <div style='flex: 1;'><span style='background: #30363d; padding: 2px 8px; border-radius: 4px; font-size: 0.8em;'>{t['kat']}</span></div>
-                <div style='flex: 1;'><span style='color: {t['stav_col']}; background: {t['stav_col']}22; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;'>{t['stav']}</span></div>
-                <div style='flex: 1.5; color: #8b949e; font-size: 0.9em;'>{t['cas']}</div>
-            </div>
-        """, unsafe_allow_html=True)
-    with col_btn:
-        st.write("") # Vyrovnání
-        if st.button("Otevřít →", key=f"btn_{t['id']}"):
-            st.toast(f"Načítám tiket {t['id']}")
-
-st.markdown('</div>', unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
