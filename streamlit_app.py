@@ -3,7 +3,97 @@ import json
 
 # --- 1. ZÁKLADNÍ NASTAVENÍ (MUSÍ BÝT PRVNÍ) ---
 st.set_page_config(
-    page_title="Community RP - Admin",
+    page_titleimport streamlit as st
+
+# --- 1. KONFIGURACE (MUST BE FIRST) ---
+st.set_page_config(
+    page_title="CRP Admin Panel",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- 2. CSS STYLY (Tmavý režim a sidebar) ---
+st.markdown("""
+    <style>
+    /* Hlavní pozadí */
+    .stApp { background-color: #0d1117; color: #e6edf3; }
+    
+    /* Vynucení barvy a viditelnosti sidebaru */
+    [data-testid="stSidebar"] {
+        background-color: #161b22 !important;
+        border-right: 1px solid #30363d;
+        min-width: 250px;
+    }
+
+    /* Skrytí horní dekorace Streamlitu */
+    header {visibility: hidden;}
+    
+    /* Styl pro karty tiketů */
+    .ticket-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 3. LOGIKA NAVIGACE ---
+if "menu" not in st.session_state:
+    st.session_state.menu = "Tikety"
+
+# --- 4. BOČNÍ MENU (SIDEBAR) ---
+with st.sidebar:
+    st.markdown("<h1 style='text-align: center; color: white;'>💜 CRP</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>ADMINISTRAČNÍ SYSTÉM</p>", unsafe_allow_html=True)
+    st.write("---")
+    
+    # Tlačítka menu
+    if st.button("🏠 Přehled", use_container_width=True):
+        st.session_state.menu = "Přehled"
+    
+    # Zvýrazněné tlačítko pro Tikety
+    if st.button("🎫 Tikety", type="primary" if st.session_state.menu == "Tikety" else "secondary", use_container_width=True):
+        st.session_state.menu = "Tikety"
+        
+    if st.button("📁 Archiv", use_container_width=True):
+        st.session_state.menu = "Archiv"
+        
+    st.write("---")
+    st.markdown("STAV: <span style='color:#2ecc71'>● ONLINE</span>", unsafe_allow_html=True)
+    st.caption("Verze systému: 1.2.0")
+
+# --- 5. OBSAH HLAVNÍ PLOCHY ---
+if st.session_state.menu == "Tikety":
+    st.title("Tikety podpory")
+    
+    # Ukázková tabulka
+    col_id, col_hrac, col_stav, col_akce = st.columns([0.5, 2, 1, 1])
+    
+    with col_id: st.markdown("**ID**")
+    with col_hrac: st.markdown("**HRÁČ**")
+    with col_stav: st.markdown("**STAV**")
+    with col_akce: st.markdown("**AKCE**")
+    
+    st.write("---")
+    
+    # První řádek (ukázka)
+    c1, c2, c3, c4 = st.columns([0.5, 2, 1, 1])
+    with c1: st.write("#6")
+    with c2: st.write("xxexitusxx")
+    with c3: st.markdown("<span style='color: #f1c40f;'>Řeší se</span>", unsafe_allow_html=True)
+    with c4: 
+        if st.button("Otevřít", key="t6"):
+            st.success("Otevírám chat k tiketu #6...")
+
+elif st.session_state.menu == "Přehled":
+    st.title("Statistiky serveru")
+    st.write("Zde uvidíš celkový počet tiketů a aktivitu adminů.")
+
+else:
+    st.title(st.session_state.menu)
+    st.write("Tato sekce se připravuje.")="Community RP - Admin",
     layout="wide",
     initial_sidebar_state="expanded"
 )
