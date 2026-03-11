@@ -1,119 +1,70 @@
 import streamlit as st
 import sqlite3
-from datetime import datetime
 
-# --- 1. KONFIGURACE (TOTO MUSÍ BÝT NA ZAČÁTKU) ---
-st.set_page_config(
-    page_title="CRP Admin Panel",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. Musí být jako první řádek
+st.set_page_config(page_title="CRP Admin", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. KOMPLETNÍ FIALOVÝ DESIGN (CSS) ---
+# 2. Fialový design (vynucení barev podle tvého vzoru)
 st.markdown("""
     <style>
-    /* Hlavní tmavé pozadí */
     .stApp { background-color: #0d1117; color: #e6edf3; }
-    
-    /* Levý panel (Sidebar) - Fialové prvky */
-    [data-testid="stSidebar"] {
-        background-color: #161b22 !important;
-        border-right: 2px solid #7c3aed;
+    [data-testid="stSidebar"] { 
+        background-color: #161b22 !important; 
+        border-right: 2px solid #7c3aed !important; 
     }
-    
-    /* Horní lišta pryč */
-    header { visibility: hidden; }
-
-    /* Fialová tlačítka v menu */
-    .stButton > button {
-        width: 100%;
-        background-color: transparent;
+    .stButton>button {
+        background-color: #7c3aed22;
         color: #a855f7;
         border: 1px solid #7c3aed;
+        width: 100%;
         border-radius: 8px;
-        font-weight: bold;
-        padding: 10px;
-        transition: 0.3s;
     }
-    .stButton > button:hover {
-        background-color: #7c3aed22;
-        box-shadow: 0 0 10px #7c3aed;
-    }
-
-    /* Vzhled tabulky (karty tiketů) */
-    .ticket-row {
-        background-color: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-    }
+    header { visibility: hidden; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATABÁZE ---
-def init_db():
-    conn = sqlite3.connect('tickets.db')
-    conn.execute('''CREATE TABLE IF NOT EXISTS tickets 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  hrac TEXT, kat TEXT, stav TEXT, cas TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# --- 4. BOČNÍ MENU (SIDEBAR) ---
+# 3. Boční menu (Sidebar)
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #a855f7;'>💜 COMMUNITY RP</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: gray;'>ADMIN PANEL</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #a855f7;'>💜 CRP ADMIN</h2>", unsafe_allow_html=True)
     st.write("---")
     
-    # Navigační tlačítka
-    if st.button("🏠 Přehled"): st.session_state.p = "p"
-    if st.button("🎫 Tikety"): st.session_state.p = "t"
-    if st.button("📁 Archiv"): st.session_state.p = "a"
-    if st.button("⚙️ Nastavení"): st.session_state.p = "n"
+    # Tlačítka menu (zatím jen vizuální, aby tam byla)
+    st.button("🏠 Přehled")
+    st.button("🎫 Tikety", type="primary")
+    st.button("👤 Moje Tikety")
+    st.button("📁 Archiv")
     
     st.write("---")
     st.markdown("STAV SERVERU: <span style='color:#2ecc71'>● ONLINE</span>", unsafe_allow_html=True)
-    st.progress(0.02)
-    st.caption("1 / 64 Hráčů")
+    st.progress(0.02) # Ukazatel hráčů
 
-# --- 5. HLAVNÍ OBSAH (TABULKA) ---
-st.title("🎫 Tikety podpory")
+# 4. Hlavní obsah - Tabulka tiketů
+st.title("Tikety podpory")
 
-# Pokud je databáze prázdná, přidáme jeden testovací tiket, ať to vidíš
-conn = sqlite3.connect('tickets.db')
-c = conn.cursor()
-c.execute("SELECT COUNT(*) FROM tickets")
-if c.fetchone()[0] == 0:
-    c.execute("INSERT INTO tickets (hrac, kat, stav, cas) VALUES (?, ?, ?, ?)", 
-              ('xxexitusxx', 'frakce', 'Řeší se', '2026-03-07 17:02:50'))
-    conn.commit()
+# Vytvoření tabulky (sloupce jako na tvém obrázku)
+col1, col2, col3, col4, col5 = st.columns([0.5, 1.5, 1.5, 1, 1])
+col1.caption("ID")
+col2.caption("HRÁČ")
+col3.caption("KATEGORIE")
+col4.caption("STAV")
+col5.caption("AKCE")
 
-# Načtení tiketů
-c.execute("SELECT * FROM tickets ORDER BY id DESC")
-tickets = c.fetchall()
-conn.close()
+st.markdown("---")
 
-# Hlavička tabulky
-col_id, col_hrac, col_kat, col_stav, col_akce = st.columns([0.5, 1.5, 1.5, 1, 1])
-col_id.caption("ID")
-col_hrac.caption("HRÁČ")
-col_kat.caption("KATEGORIE")
-col_stav.caption("STAV")
-col_akce.caption("AKCE")
+# Ukázka tiketu (přesně podle tvého screenshotu #6)
+c1, c2, c3, c4, c5 = st.columns([0.5, 1.5, 1.5, 1, 1])
+c1.write("#6")
+c2.write("xxexitusxx")
+c3.write("frakce")
+c4.markdown("<span style='color:#f1c40f'>Řeší se</span>", unsafe_allow_html=True)
+if c5.button("Otevřít →", key="t6"):
+    st.success("Otevírám tiket #6... (Tady se pak napojí chat)")
 
-st.write("---")
-
-# Výpis tiketů
-for t in tickets:
-    c1, c2, c3, c4, c5 = st.columns([0.5, 1.5, 1.5, 1, 1])
-    c1.write(f"#{t[0]}")
-    c2.write(t[1])
-    c3.markdown(f"<span style='background:#30363d; padding:2px 8px; border-radius:4px;'>{t[2]}</span>", unsafe_allow_html=True)
-    c4.markdown(f"<span style='color:#f1c40f'>● {t[3]}</span>", unsafe_allow_html=True)
-    if c5.button("Otevřít →", key=f"btn_{t[0]}"):
-        st.info(f"Otevírám tiket hráče {t[1]}...")
+# Ukázka dalšího tiketu
+c1, c2, c3, c4, c5 = st.columns([0.5, 1.5, 1.5, 1, 1])
+c1.write("#2")
+c2.write("CopRoleplay")
+c3.write("Frakce")
+c4.markdown("<span style='color:#2ecc71'>Nový</span>", unsafe_allow_html=True)
+if c5.button("Otevřít →", key="t2"):
+    st.info("Otevírám tiket #2...")
