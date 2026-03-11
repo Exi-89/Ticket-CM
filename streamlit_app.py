@@ -1,62 +1,79 @@
 import streamlit as st
 
-# 1. KONFIGURACE (Musí být úplně nahoře)
-st.set_page_config(
-    page_title="CRP Admin",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. Musí být úplně první věc v souboru
+st.set_page_config(page_title="CRP Admin", layout="wide", initial_sidebar_state="expanded")
 
-# 2. DESIGN (CSS) - Vynucení viditelnosti
+# 2. CSS pro barvy a vzhled (aby to vypadalo jako tvůj ngrok dashboard)
 st.markdown("""
     <style>
-    /* Pozadí hlavní plochy */
     .stApp { background-color: #0d1117; color: white; }
     
-    /* VYNUCENÍ BARVY SIDEBARU - Aby byl vidět rozdíl */
-    section[data-testid="stSidebar"] {
-        background-color: #1c2128 !important; /* Trochu světlejší než zbytek */
-        border-right: 1px solid #30363d !important;
+    /* Vynucení tmavého sidebaru */
+    [data-testid="stSidebar"] {
+        background-color: #161b22 !important;
+        border-right: 1px solid #30363d;
     }
     
-    /* Styl pro tlačítka v menu */
-    .stButton>button {
-        border-radius: 5px;
-        margin-bottom: 5px;
-    }
+    /* Skrytí horní lišty Streamlitu */
+    header { visibility: hidden; }
     
-    /* Skrytí zbytečností */
-    header {visibility: hidden;}
+    /* Styl pro tabulku tiketů */
+    .ticket-container {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. OBSAH BOČNÍHO PANELU (SIDEBAR)
-# Používáme st.sidebar.xxx pro všechno, co má být vlevo
+# 3. BOČNÍ PANEL (SIDEBAR) - Tady jsou ty tlačítka
 with st.sidebar:
-    st.markdown("<h2 style='color: #a855f7;'>💜 CRP ADMIN</h2>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: white;'>💜 CRP</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: gray;'>ADMIN PANEL</p>", unsafe_allow_html=True)
     st.write("---")
     
-    # Navigační menu
-    st.subheader("Menu")
-    btn_prehled = st.button("🏠 Přehled", use_container_width=True)
-    btn_tikety = st.button("🎫 Tikety", use_container_width=True)
-    btn_archiv = st.button("📁 Archiv", use_container_width=True)
-    
-    st.write("---")
-    st.info("Server: Online")
-    st.caption("Verze 1.0.2")
+    # Navigační tlačítka - každé má svou akci
+    if st.button("🏠 Přehled", use_container_width=True):
+        st.toast("Načítám přehled...")
+        
+    if st.button("🎫 Tikety", type="primary", use_container_width=True):
+        st.toast("Načítám tikety...")
+        
+    if st.button("👤 Moje Tikety", use_container_width=True):
+        st.toast("Načítám tvoje tikety...")
+        
+    if st.button("📁 Archiv", use_container_width=True):
+        st.toast("Otevírám archiv...")
 
-# 4. HLAVNÍ PLOCHA
+    st.write("---")
+    st.markdown("STAV SERVERU: <span style='color:#2ecc71'>● ONLINE</span>", unsafe_allow_html=True)
+
+# 4. HLAVNÍ OBSAH (To, co vidíš teď na screenshotu)
 st.title("Tikety podpory")
 
-# Ukázka tabulky, kterou už tam máš
+# Horní filtry
+col1, col2 = st.columns([3, 1])
+with col2:
+    st.selectbox("", ["Všechny stavy", "Nové", "Řeší se"], label_visibility="collapsed")
+
+# Tabulka
 st.markdown("""
-<div style='background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px;'>
-    <div style='display: flex; justify-content: space-between; border-bottom: 1px solid #30363d; padding-bottom: 10px; color: gray;'>
-        <span>ID</span><span>HRÁČ</span><span>STAV</span><span>AKCE</span>
-    </div>
-    <div style='display: flex; justify-content: space-between; padding: 15px 0;'>
-        <span>#6</span><span>xxexitusxx</span><span style='color: #f1c40f;'>Řeší se</span><span style='color: #a855f7;'>Otevřít →</span>
-    </div>
+<div class="ticket-container">
+    <table style="width:100%; border-collapse: collapse; color: #8b949e;">
+        <tr style="border-bottom: 1px solid #30363d; text-align: left;">
+            <th style="padding: 10px;">ID</th>
+            <th>HRÁČ</th>
+            <th>STAV</th>
+            <th style="text-align: right;">AKCE</th>
+        </tr>
+        <tr style="border-bottom: 1px solid #30363d;">
+            <td style="padding: 15px 10px;">#6</td>
+            <td>xxexitusxx</td>
+            <td><span style="color: #f1c40f; background: #f1c40f22; padding: 2px 8px; border-radius: 10px;">Řeší se</span></td>
+            <td style="text-align: right; color: #a855f7;">Otevřít →</td>
+        </tr>
+    </table>
 </div>
 """, unsafe_allow_html=True)
